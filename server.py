@@ -3,8 +3,8 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
 TOKEN = "7850448853:AAE5whRafwS-7Evy4Qs4NzqdSZ1dEQtgQh4"
-ADMIN_ID = "1838192124"  # Твой ID
-CHANNEL_ID = "-1002581582625"  # ID канала или группы (нужно с минусом и без @)
+ADMIN_ID = 1838192124  # Твой ID
+CHANNEL_ID = -1002581582625  # ID канала или группы (нужно с минусом и без @)
 
 last_user_id = None
 
