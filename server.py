@@ -2,7 +2,7 @@ from telegram import Update, ForceReply
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
 
 # Настройки
-BOT_TOKEN = "ТВОЙ_ТОКЕН_ЗДЕСЬ"
+BOT_TOKEN = "7850448853:AAHoGKGwb4dHgs25RElSGE_LNHQBFv4zFiU"
 ACCESS_PASSWORD = "osint123"  # Пароль для подключения
 AUTHORIZED_USERS = set()
 
