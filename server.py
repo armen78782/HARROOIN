@@ -1,107 +1,57 @@
-import asyncio
-import subprocess
-import os
-import nest_asyncio
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
-# Настройки
-BOT_TOKEN = "7850448853:AAHoGKGwb4dHgs25RElSGE_LNHQBFv4zFiU"
-ACCESS_PASSWORD = "osint123"
-AUTHORIZED_USERS = set()
+TOKEN = "7850448853:AAE5whRafwS-7Evy4Qs4NzqdSZ1dEQtgQh4"
+ADMIN_ID = 1838192124
 
-# Команда /start
+last_user_id = None
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id in AUTHORIZED_USERS:
-        await show_menu(update)
-    else:
-        await update.message.reply_text("Введите пароль для доступа:")
+    await update.message.reply_text("Привет! Я бот-пересыльщик сообщений.")
 
-# Проверка пароля
-async def password_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id in AUTHORIZED_USERS:
+async def forward_to_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global last_user_id
+    user = update.message.from_user
+    chat_id = update.message.chat_id
+    text = update.message.text
+
+    last_user_id = chat_id
+    message_to_admin = f"Сообщение от {user.first_name} (id: {chat_id}):\n{text}"
+    await context.bot.send_message(chat_id=ADMIN_ID, text=message_to_admin)
+
+async def reply_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global last_user_id
+    if update.message.from_user.id != ADMIN_ID:
+        await update.message.reply_text("Ты не админ, не могу выполнить.")
         return
 
-    if update.message.text == ACCESS_PASSWORD:
-        AUTHORIZED_USERS.add(user_id)
-        await update.message.reply_text("Доступ разрешён!")
-        await show_menu(update)
-    else:
-        await update.message.reply_text("Неверный пароль.")
-
-# Главное меню
-async def show_menu(update: Update):
-    keyboard = [
-        [InlineKeyboardButton("Поиск username (Sherlock)", callback_data='sherlock')],
-        [InlineKeyboardButton("Помощь", callback_data='help')]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Выбери команду:", reply_markup=reply_markup)
-
-# Обработка кнопок
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    user_id = query.from_user.id
-    await query.answer()
-
-    if user_id not in AUTHORIZED_USERS:
-        await query.edit_message_text("Сначала авторизуйся через /start.")
+    args = context.args
+    if len(args) < 2:
+        await update.message.reply_text("Используй: /reply <user_id> <текст>")
         return
 
-    if query.data == "help":
-        await query.edit_message_text("OSINT бот:\n- Ищи username через Sherlock\n- Команды будут добавлены позже.")
-    elif query.data == "sherlock":
-        context.user_data["action"] = "sherlock"
-        await query.edit_message_text("Введи username для поиска через Sherlock:")
-
-# Обработка сообщений после выбора действия
-async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id not in AUTHORIZED_USERS:
-        await update.message.reply_text("Сначала авторизуйся через /start.")
+    try:
+        user_id = int(args[0])
+    except ValueError:
+        await update.message.reply_text("Неверный user_id.")
         return
 
-    action = context.user_data.get("action")
+    reply_text = " ".join(args[1:])
 
-    if action == "sherlock":
-        username = update.message.text.strip()
-        await update.message.reply_text(f"Ищу {username} через Sherlock, подожди...")
+    try:
+        await context.bot.send_message(chat_id=user_id, text=reply_text)
+        await update.message.reply_text(f"Отправлено пользователю {user_id}")
+    except Exception as e:
+        await update.message.reply_text(f"Ошибка при отправке: {e}")
 
-        output_file = f"sherlock_{username}.txt"
-        cmd = ["python3", "sherlock/sherlock.py", username, "--print-found", "--timeout", "5"]
-
-        try:
-            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=120)
-            found = [line for line in result.stdout.split("\n") if line.startswith("[+]")]
-
-            if found:
-                with open(output_file, "w") as f:
-                    f.write("\n".join(found))
-                await update.message.reply_document(document=open(output_file, "rb"))
-                os.remove(output_file)
-            else:
-                await update.message.reply_text("Профили не найдены.")
-        except Exception as e:
-            await update.message.reply_text(f"Ошибка при запуске Sherlock:\n{e}")
-
-        context.user_data["action"] = None
-    else:
-        await update.message.reply_text("Используй /start для начала.")
-
-# Основной запуск
-async def main():
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+def main():
+    app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(button_handler))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, password_check))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
+    app.add_handler(CommandHandler("reply", reply_command))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, forward_to_admin))
 
-    print("OSINT бот запущен.")
-    await app.run_polling()
+    app.run_polling()
 
 if __name__ == "__main__":
-    nest_asyncio.apply()
-    asyncio.get_event_loop().run_until_complete(main())
+    main()
