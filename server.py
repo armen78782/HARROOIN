@@ -1,20 +1,18 @@
-from telegram import Update, ForceReply
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
+import asyncio
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
-# Настройки
 BOT_TOKEN = "7850448853:AAHoGKGwb4dHgs25RElSGE_LNHQBFv4zFiU"
-ACCESS_PASSWORD = "osint123"  # Пароль для подключения
+ACCESS_PASSWORD = "osint123"
 AUTHORIZED_USERS = set()
 
-# Команда /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if user_id in AUTHORIZED_USERS:
-        await update.message.reply_text("Ты уже авторизован. Используй /help.")
+        await update.message.reply_text("Ты уже авторизован. Введи /help.")
     else:
-        await update.message.reply_text("Введите пароль для доступа:")
+        await update.message.reply_text("Введи пароль:")
 
-# Обработка пароля
 async def password_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if user_id in AUTHORIZED_USERS:
@@ -22,42 +20,34 @@ async def password_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if update.message.text == ACCESS_PASSWORD:
         AUTHORIZED_USERS.add(user_id)
-        await update.message.reply_text("Доступ разрешён! Используй /help для команд.")
+        await update.message.reply_text("Доступ разрешён! Введи /help.")
     else:
         await update.message.reply_text("Неверный пароль. Попробуй снова.")
 
-# Команда /help
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id not in AUTHORIZED_USERS:
+    if update.effective_user.id not in AUTHORIZED_USERS:
         await update.message.reply_text("Сначала введи пароль через /start.")
         return
 
-    help_text = """
-OSINT команды:
-- /email <email> — поиск по email
-- /username <ник> — поиск по соцсетям
-- /ip <ip-адрес> — информация об IP
-"""
-    await update.message.reply_text(help_text)
+    await update.message.reply_text("""
+Команды OSINT:
+- /email someone@example.com
+(добавим позже другие)
+""")
 
-# Пример команды — поиск email
 async def email_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id not in AUTHORIZED_USERS:
+    if update.effective_user.id not in AUTHORIZED_USERS:
         await update.message.reply_text("Сначала введи пароль через /start.")
         return
 
     if not context.args:
-        await update.message.reply_text("Пример: /email someone@example.com")
+        await update.message.reply_text("Пример: /email test@example.com")
         return
 
     email = context.args[0]
-    # Заглушка — сюда можно вставить реальные API-запросы
-    await update.message.reply_text(f"Поиск информации по email: {email}\n(Тут будет результат)")
+    await update.message.reply_text(f"Ищем информацию по email: {email} (пока заглушка)")
 
-# Основной запуск
-if __name__ == '__main__':
+async def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
@@ -65,5 +55,8 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("email", email_search))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, password_check))
 
-    print("Бот запущен...")
-    app.run_polling()
+    print("Бот запущен.")
+    await app.run_polling()
+
+if __name__ == "__main__":
+    asyncio.run(main())
